@@ -16,8 +16,12 @@ import {
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { basename, join } from 'path';
 import { paginateText, estimatePageCount } from './paginator.js';
-import { textToImages, closeBrowser, Theme, Ratio, FontSize } from './renderer.js';
+import { autoPaginate, closeAutoPaginatorBrowser } from './auto-paginator.js';
+import { textToImages, renderPages, closeBrowser, Theme, Ratio, FontSize } from './renderer.js';
 import { generateCoverImage, generateImagePrompt, GeneratedImage } from './gemini-image.js';
+
+// Check if Gemini API key is available
+const hasGeminiApiKey = !!process.env.GEMINI_API_KEY;
 
 // Store prompts used for image generation (for logging/debugging)
 const generatedPrompts: Map<string, string> = new Map();
@@ -120,8 +124,7 @@ Image ratios:
       },
       generateAiCover: {
         type: 'boolean',
-        default: false,
-        description: 'Generate AI cover image using Gemini. Requires GEMINI_API_KEY environment variable.'
+        description: 'Generate AI cover image using Gemini. Defaults to true if GEMINI_API_KEY is set. Set to false to disable.'
       },
       charsPerPage: {
         type: 'number',
@@ -216,8 +219,7 @@ Cleans up markdown formatting for cleaner text display.`,
       },
       generateAiCover: {
         type: 'boolean',
-        default: false,
-        description: 'Generate AI cover image using Gemini'
+        description: 'Generate AI cover image using Gemini. Defaults to true if GEMINI_API_KEY is set. Set to false to disable.'
       },
       charsPerPage: {
         type: 'number',
@@ -266,7 +268,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ratio = '3:4',
           fontSize = 'medium',
           showCover = false,
-          generateAiCover = false,
+          generateAiCover,
           charsPerPage,
           outputDir
         } = args as {
@@ -285,42 +287,57 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('text is required and must be a string');
         }
 
-        // 分页
-        const pages = paginateText(text, { fontSize, ratio, charsPerPage });
+        // Determine if we should generate AI cover
+        // Default: true if API key exists, unless explicitly set to false
+        const shouldGenerateAiCover = generateAiCover !== false && hasGeminiApiKey && showCover && !!title;
 
-        // Generate AI cover image if requested
+        // 使用自动分页（浏览器测量）
+        const pages = await autoPaginate(text, { 
+          theme: theme as any, 
+          ratio: ratio as any, 
+          fontSize: fontSize as any,
+          hasTitle: showCover && !!title,
+          hasAICover: shouldGenerateAiCover
+        });
+
+        // Generate AI cover image if conditions are met
         let aiCoverImage: string | undefined;
         let coverPrompt: string | undefined;
 
-        if (generateAiCover && showCover && title) {
-          const coverResult = await generateCoverImage(title, text, theme, {
+        if (shouldGenerateAiCover) {
+          const coverResult = await generateCoverImage(title!, text, theme, {
             aspectRatio: ratio
           });
 
           if (coverResult) {
             aiCoverImage = coverResult.base64;
             coverPrompt = coverResult.prompt;
-            // Store the prompt for reference
-            const promptKey = `${Date.now()}-${title.slice(0, 20)}`;
+            const promptKey = `${Date.now()}-${title!.slice(0, 20)}`;
             generatedPrompts.set(promptKey, coverPrompt);
           }
         }
 
         // 渲染
-        const result = await textToImages(text, pages, {
-          theme,
-          ratio,
-          fontSize,
+        const imageBuffers = await renderPages(pages, {
+          theme: theme as any,
+          ratio: ratio as any,
+          fontSize: fontSize as any,
           title,
           showCover,
           aiCoverImage
         });
 
+        // Close auto-paginator browser
+        await closeAutoPaginatorBrowser();
+
+        // Convert buffers to base64
+        const images = imageBuffers.map(buf => buf.toString('base64'));
+
         // Save to outputDir if provided
         let savedFiles: string[] = [];
         if (outputDir) {
           mkdirSync(outputDir, { recursive: true });
-          result.images.forEach((base64, i) => {
+          images.forEach((base64, i) => {
             const fileName = `page-${String(i + 1).padStart(2, '0')}.png`;
             const filePath = join(outputDir, fileName);
             writeFileSync(filePath, Buffer.from(base64, 'base64'));
@@ -334,14 +351,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: 'text',
               text: JSON.stringify({
                 success: true,
-                pageCount: result.pageCount,
+                pageCount: images.length,
                 theme,
                 ratio,
                 dimensions: ratio === '3:4' ? '1080x1440' : ratio === '1:1' ? '1080x1080' : '1080x810',
                 aiCoverGenerated: !!aiCoverImage,
                 coverPrompt: coverPrompt,
                 savedFiles: savedFiles.length > 0 ? savedFiles : undefined,
-                images: outputDir ? undefined : result.images.map((img, i) => ({
+                images: outputDir ? undefined : images.map((img, i) => ({
                   page: i + 1,
                   base64: img,
                   dataUrl: `data:image/png;base64,${img}`
@@ -430,7 +447,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ratio = '3:4',
           fontSize = 'medium',
           showCover = true,  // Default to true for files
-          generateAiCover = false,
+          generateAiCover,
           charsPerPage,
           outputDir
         } = args as {
@@ -453,41 +470,56 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { content: text, title: extractedTitle } = readTextFile(filePath);
         const title = overrideTitle || extractedTitle;
 
-        // 分页
-        const pages = paginateText(text, { fontSize, ratio, charsPerPage });
+        // Determine if we should generate AI cover
+        const shouldGenerateAiCover = generateAiCover !== false && hasGeminiApiKey && showCover && !!title;
 
-        // Generate AI cover image if requested
+        // 使用自动分页
+        const pages = await autoPaginate(text, { 
+          theme: theme as any, 
+          ratio: ratio as any, 
+          fontSize: fontSize as any,
+          hasTitle: showCover && !!title,
+          hasAICover: shouldGenerateAiCover
+        });
+
+        // Generate AI cover image if conditions are met
         let aiCoverImage: string | undefined;
         let coverPrompt: string | undefined;
 
-        if (generateAiCover && showCover && title) {
-          const coverResult = await generateCoverImage(title, text, theme, {
+        if (shouldGenerateAiCover) {
+          const coverResult = await generateCoverImage(title!, text, theme, {
             aspectRatio: ratio
           });
 
           if (coverResult) {
             aiCoverImage = coverResult.base64;
             coverPrompt = coverResult.prompt;
-            const promptKey = `${Date.now()}-${title.slice(0, 20)}`;
+            const promptKey = `${Date.now()}-${title!.slice(0, 20)}`;
             generatedPrompts.set(promptKey, coverPrompt);
           }
         }
 
         // 渲染
-        const result = await textToImages(text, pages, {
-          theme,
-          ratio,
-          fontSize,
+        const imageBuffers = await renderPages(pages, {
+          theme: theme as any,
+          ratio: ratio as any,
+          fontSize: fontSize as any,
           title,
           showCover,
           aiCoverImage
         });
 
+        // Close auto-paginator browser
+        await closeAutoPaginatorBrowser();
+
+        // Convert buffers to base64
+        const images = imageBuffers.map(buf => buf.toString('base64'));
+
         // Save to outputDir if provided
         let savedFiles: string[] = [];
         if (outputDir) {
           mkdirSync(outputDir, { recursive: true });
-          result.images.forEach((base64, i) => {
+          images.forEach((base64, i) => {
             const fileName = `page-${String(i + 1).padStart(2, '0')}.png`;
             const outputPath = join(outputDir, fileName);
             writeFileSync(outputPath, Buffer.from(base64, 'base64'));
@@ -504,14 +536,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 sourceFile: filePath,
                 extractedTitle: extractedTitle,
                 usedTitle: title,
-                pageCount: result.pageCount,
+                pageCount: images.length,
                 theme,
                 ratio,
                 dimensions: ratio === '3:4' ? '1080x1440' : ratio === '1:1' ? '1080x1080' : '1080x810',
                 aiCoverGenerated: !!aiCoverImage,
                 coverPrompt: coverPrompt,
                 savedFiles: savedFiles.length > 0 ? savedFiles : undefined,
-                images: outputDir ? undefined : result.images.map((img, i) => ({
+                images: outputDir ? undefined : images.map((img, i) => ({
                   page: i + 1,
                   base64: img,
                   dataUrl: `data:image/png;base64,${img}`

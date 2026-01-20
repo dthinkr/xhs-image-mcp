@@ -9,8 +9,8 @@ dist/
 .env.local
 .env.*.local
 
-# Test output
-test-output/
+# Generated images output
+output/
 
 # User articles (personal content)
 articles/

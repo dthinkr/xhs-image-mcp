@@ -15,19 +15,19 @@ export interface PaginatorOptions {
 // 基础字符数（按中文计算，保守估计以防溢出）
 const BASE_CHARS_PER_PAGE: Record<string, Record<string, number>> = {
   '3:4': {
-    small: 550,
-    medium: 420,
-    large: 320
-  },
-  '1:1': {
-    small: 380,
-    medium: 300,
+    small: 420,
+    medium: 320,
     large: 240
   },
+  '1:1': {
+    small: 300,
+    medium: 230,
+    large: 180
+  },
   '4:3': {
-    small: 320,
-    medium: 260,
-    large: 200
+    small: 250,
+    medium: 200,
+    large: 150
   }
 };
 

@@ -1,6 +1,6 @@
 {
   "name": "xhs-image-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "MCP server for converting articles to Xiaohongshu (小红书) style image cards with AI cover generation",
   "type": "module",
   "main": "dist/index.js",
