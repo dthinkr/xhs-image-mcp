@@ -1,0 +1,89 @@
+/* Minimal Theme - 简约白底黑字 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+:root {
+  --bg-color: #ffffff;
+  --text-color: #1a1a1a;
+  --secondary-color: #666666;
+  --accent-color: #ff2442;
+  --border-color: #e5e5e5;
+  --font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.8;
+  padding: 50px 50px 30px;
+  min-height: 100%;
+}
+
+.page-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 30px;
+  line-height: 1.3;
+  letter-spacing: -0.5px;
+}
+
+.content {
+  font-size: 26px;
+  line-height: 1.85;
+  text-align: justify;
+  flex: 1;
+}
+
+.content p {
+  margin-bottom: 18px;
+  text-indent: 2em;
+}
+
+.page-number {
+  text-align: center;
+  font-size: 18px;
+  color: var(--secondary-color);
+  margin-top: 20px;
+  padding-top: 15px;
+}
+
+/* 封面样式 */
+.cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  padding: 80px 60px;
+}
+
+.cover .title {
+  font-size: 56px;
+  margin-bottom: 40px;
+}
+
+.cover .subtitle {
+  font-size: 28px;
+  color: var(--secondary-color);
+}
+
+.cover .divider {
+  width: 60px;
+  height: 4px;
+  background: var(--accent-color);
+  margin: 40px 0;
+}

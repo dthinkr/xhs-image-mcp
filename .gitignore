@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (IMPORTANT: contains API keys)
+.env
+.env.local
+.env.*.local
+
+# Test output
+test-output/
+
+# User articles (personal content)
+articles/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lock files (optional - remove if you want to commit)
+# package-lock.json
