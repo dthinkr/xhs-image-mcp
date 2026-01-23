@@ -11,11 +11,7 @@ import { generateCoverImage } from './gemini-image.js';
 
 // Article configurations: filename -> theme
 const ARTICLES: { file: string; theme: Theme }[] = [
-  { file: '圆周率.md', theme: 'elegant' },
-  { file: '蓝藻.md', theme: 'elegant' },
-  { file: '地址.md', theme: 'dark' },
-  { file: '史高维尔重置.md', theme: 'warm' },
-  { file: '白噪音.md', theme: 'minimal' },
+  { file: '纪念碑.md', theme: 'minimal' },
 ];
 
 function cleanMarkdown(content: string): string {
@@ -89,7 +85,7 @@ async function processArticle(file: string, theme: Theme): Promise<void> {
 
   // Save to article-specific folder
   const articleName = basename(file, '.md');
-  const outputDir = join(process.cwd(), 'output', `${articleName}-${theme}`);
+  const outputDir = join(process.cwd(), 'output', articleName);
   mkdirSync(outputDir, { recursive: true });
 
   result.images.forEach((base64, index) => {
